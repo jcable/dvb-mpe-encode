@@ -1,0 +1,19 @@
+#summary How to use the program.
+
+= Introduction =
+
+The program can be used as part of a pipe to transport IP over DVB links (e.g. satellite).
+
+= Details =
+
+Example use:
+
+In one terminal:
+
+mpe tun0 | dvbsnoop -if -
+
+In another Terminal:
+
+ifconfig tun0 10.0.0.1/24 up
+nc -u 10.0.0.2 16000
+<type stuff>
