@@ -15,5 +15,6 @@ In one terminal:
 In another Terminal:
 
 `ifconfig tun0 10.0.0.1/24 up`
+
 `nc -u 10.0.0.2 16000`
 <type stuff>
