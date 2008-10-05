@@ -1,0 +1,12 @@
+#summary How to compile the program
+
+= Introduction =
+
+Just a dependency on zlib for the crc32
+
+
+= Details =
+
+The Makefile contains the following:
+
+`gcc mpe.c -o mpe -lz
