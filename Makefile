@@ -1,2 +1,2 @@
 mpe:mpe.c
-	gcc mpe.c -o mpe -lz
+	gcc sectioncrc.c mpe.c -o mpe

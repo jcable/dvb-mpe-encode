@@ -5,13 +5,14 @@
 #include <string.h>
 #include <syslog.h>
 #include <errno.h>
-#include <zlib.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/if.h>
 
 #include <linux/if_tun.h>
+
+#include "sectioncrc.h"
 
 /* pre 2.4.6 compatibility */
 #define OTUNSETNOCSUM  (('T'<< 8) | 200)
@@ -60,8 +61,8 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
 {
   unsigned char* mpe_header = buf;
   unsigned char* ip_datagram = &buf[12];
-  uLong crc;
-  uLong i,len;
+  unsigned long crc;
+  unsigned long i,len;
   unsigned short section_len = ip_len + 9 + 4;
   mpe_header[0] = 0x3e;
   mpe_header[1] = ((section_len >> 8) & 0x0f) | 0xb0;
@@ -75,7 +76,7 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
   mpe_header[9] = 0;
   mpe_header[10] = 0;
   mpe_header[11] = 0;
-  if(ip_datagram[16] == 224)
+  if(ip_datagram[16] == 224) /* multicast */
   {
   	mpe_header[3] = ip_datagram[19];
   	mpe_header[4] = ip_datagram[18];
@@ -85,8 +86,7 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
   	mpe_header[11] = 1;
   }
   len = 12+ip_len;
-  crc = crc32 (0L, Z_NULL, 0);
-  crc = crc32 (crc, mpe_header, len);
+  crc = sectioncrc(buf, len);
   memcpy(&buf[len], &crc, 4);
   len += 4;
   write(fd, buf, len);
