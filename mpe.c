@@ -95,6 +95,14 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
 int
 main (int argc, char **argv)
 {
+  if(argc<2)
+  {
+    fprintf(stderr, "usage %s devname\n", argv[0]);
+    fprintf(stderr, "Create a tun device and send DVB/MPE DSM-CC sections to stdout.\n");
+    fprintf(stderr, "Project home page http://code.google.com/p/dvb-mpe-encode\n");
+    fprintf(stderr, "Example:\nmpe dvb0 | sec2ts 430 | DtPlay 1000000\n");
+    exit(1);
+  }
   int tun_fd = tun_open (argv[1]);
   while (1)
     {
