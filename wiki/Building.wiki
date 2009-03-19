@@ -2,11 +2,10 @@
 
 = Introduction =
 
-Just a dependency on zlib for the crc32
-
+Type make
 
 = Details =
 
 The Makefile contains the following:
 
-`gcc mpe.c -o mpe -lz
+`gcc mpe.c sectioncrc.c -o mpe
