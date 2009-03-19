@@ -76,7 +76,7 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
   mpe_header[9] = 0;
   mpe_header[10] = 0;
   mpe_header[11] = 0;
-  if(ip_datagram[16] == 224) /* multicast */
+  if((ip_datagram[16] & 0xe0) == 0xe0) /* multicast */
   {
   	mpe_header[3] = ip_datagram[19];
   	mpe_header[4] = ip_datagram[18];
@@ -86,7 +86,7 @@ send_mpe (int fd, unsigned char *buf, size_t ip_len)
   	mpe_header[11] = 1;
   }
   len = 12+ip_len;
-  crc = sectioncrc(buf, len);
+  crc = htonl(sectioncrc(buf, len));
   memcpy(&buf[len], &crc, 4);
   len += 4;
   write(fd, buf, len);
