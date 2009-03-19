@@ -1,6 +1,7 @@
-#Project Wiki
+#summary Project Wiki
 
 = Contents =
 
-  * Building
-  * Testing
+  * [Building]
+  * [Testing]
+  * [Use]
