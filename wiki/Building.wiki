@@ -8,4 +8,4 @@ Type make
 
 The Makefile contains the following:
 
-`gcc mpe.c sectioncrc.c -o mpe
+`gcc mpe.c sectioncrc.c -o mpe`
