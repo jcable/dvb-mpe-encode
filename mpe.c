@@ -23,6 +23,9 @@
 
 static int stuff = 0;
 static char padding[184];
+static char ip_device[150];
+static char s[180];
+static const char *Id = "$Id: mpe.c 485 2009-08-13 09:00:06Z julianc $";
 
 int tun_open(char *dev)
 {
@@ -30,26 +33,26 @@ int tun_open(char *dev)
     int fd;
 
     if ((fd = open("/dev/net/tun", O_RDWR)) < 0)
-	goto failed;
+        goto failed;
 
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
     if (*dev)
-	strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+        strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
     if (ioctl(fd, TUNSETIFF, (void *) &ifr) < 0) {
-	if (errno == EBADFD) {
-	    /* Try old ioctl */
-	    if (ioctl(fd, OTUNSETIFF, (void *) &ifr) < 0)
-		goto failed;
-	} else
-	    goto failed;
+        if (errno == EBADFD) {
+            /* Try old ioctl */
+            if (ioctl(fd, OTUNSETIFF, (void *) &ifr) < 0)
+                goto failed;
+        } else
+            goto failed;
     }
 
     strcpy(dev, ifr.ifr_name);
     return fd;
 
-  failed:
+failed:
     perror("open");
     close(fd);
     return -1;
@@ -75,12 +78,12 @@ void send_mpe(int fd, unsigned char *buf, size_t ip_len)
     mpe_header[10] = 0;
     mpe_header[11] = 0;
     if ((ip_datagram[16] & 0xe0) == 0xe0) {	/* multicast */
-	mpe_header[3] = ip_datagram[19];
-	mpe_header[4] = ip_datagram[18];
-	mpe_header[8] = ip_datagram[17] & 0x7f;
-	mpe_header[9] = 0x5e;
-	mpe_header[10] = 0;
-	mpe_header[11] = 1;
+        mpe_header[3] = ip_datagram[19];
+        mpe_header[4] = ip_datagram[18];
+        mpe_header[8] = ip_datagram[17] & 0x7f;
+        mpe_header[9] = 0x5e;
+        mpe_header[10] = 0;
+        mpe_header[11] = 1;
     }
     len = 12 + ip_len;
     crc = htonl(sectioncrc(buf, len));
@@ -88,10 +91,10 @@ void send_mpe(int fd, unsigned char *buf, size_t ip_len)
     len += 4;
     write(fd, buf, len);
     if (stuff) {
-	unsigned long stuff_count = 184 - (len % 184);
-	if (stuff_count > 0) {
-	    write(fd, padding, stuff_count);
-	}
+        unsigned long stuff_count = 184 - (len % 184);
+        if (stuff_count > 0) {
+            write(fd, padding, stuff_count);
+        }
     }
 }
 
@@ -99,11 +102,11 @@ void usage(char **argv)
 {
     fprintf(stderr, "usage %s [-s] devname\n", argv[0]);
     fprintf(stderr,
-	    "Create a tun device and send DVB/MPE DSM-CC sections to stdout.\n");
+            "Create a tun device and send DVB/MPE DSM-CC sections to stdout.\n");
     fprintf(stderr,
-	    "-s stuff sections to multiple of 184 bytes using 0xff octets\n");
+            "-s stuff sections to multiple of 184 bytes using 0xff octets\n");
     fprintf(stderr,
-	    "Project home page http://code.google.com/p/dvb-mpe-encode\n");
+            "Project home page http://code.google.com/p/dvb-mpe-encode\n");
     fprintf(stderr, "Example:\nmpe dvb0 | sec2ts 430 | DtPlay 1000000\n");
     exit(1);
 }
@@ -112,26 +115,29 @@ int main(int argc, char **argv)
 {
     int tun_fd = -1;
     if (argc < 2)
-	usage(argv);
+        usage(argv);
     if (argc > 3)
-	usage(argv);
+        usage(argv);
     if (argc == 2)
-	tun_fd = tun_open(argv[1]);
+        strcpy(ip_device, argv[1]);
     if (argc == 3) {
-	if (strcmp(argv[1], "-s") != 0)
-	    usage(argv);
-	stuff = 1;
-	memset(padding, 0xff, sizeof(padding));
-	tun_fd = tun_open(argv[2]);
+        if (strcmp(argv[1], "-s") != 0)
+            usage(argv);
+        stuff = 1;
+        memset(padding, 0xff, sizeof(padding));
+        strcpy(ip_device, argv[1]);
     }
+    tun_fd = tun_open (ip_device);
     if (tun_fd == -1)
-	usage(argv);
+        usage(argv);
+    sprintf(s, "ifup %s", ip_device);
+    system(s);
     while (1) {
-	unsigned char buf[4100];
-	unsigned char *mpe_header = buf;
-	unsigned char *tun_header = &buf[12];
-	int n = read(tun_fd, tun_header, sizeof(buf));
-	send_mpe(1, mpe_header, n + tun_header - mpe_header);
+        unsigned char buf[4100];
+        unsigned char *mpe_header = buf;
+        unsigned char *tun_header = &buf[12];
+        int n = read(tun_fd, tun_header, sizeof(buf));
+        send_mpe(1, mpe_header, n + tun_header - mpe_header);
     }
     close(tun_fd);
 }
