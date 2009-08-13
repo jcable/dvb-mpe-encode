@@ -25,7 +25,7 @@ static int stuff = 0;
 static char padding[184];
 static char ip_device[150];
 static char s[180];
-static const char *Id = "$Id: mpe.c 485 2009-08-13 09:00:06Z julianc $";
+static const char *Id = "$Id$";
 
 int tun_open(char *dev)
 {
