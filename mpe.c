@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -26,6 +27,7 @@ static char padding[184];
 static char ip_device[150];
 static char s[180];
 static const char *Id = "$Id$";
+const MPE_HEADER_LEN=12;
 
 int tun_open(char *dev)
 {
@@ -58,13 +60,13 @@ failed:
     return -1;
 }
 
-void send_mpe(int fd, unsigned char *buf, size_t ip_len)
+void send_mpe(int fd, unsigned char *buf, size_t len)
 {
     unsigned char *mpe_header = buf;
-    unsigned char *ip_datagram = &buf[12];
+    unsigned char *ip_datagram = &buf[MPE_HEADER_LEN];
     unsigned long crc;
-    unsigned long i, len;
-    unsigned short section_len = ip_len + 9 + 4;
+    unsigned long i;
+    unsigned short section_len = len - 3 + 4; // table id and section len not in, crc in!
     mpe_header[0] = 0x3e;
     mpe_header[1] = ((section_len >> 8) & 0x0f) | 0xb0;
     mpe_header[2] = section_len & 0xff;
@@ -85,13 +87,12 @@ void send_mpe(int fd, unsigned char *buf, size_t ip_len)
         mpe_header[10] = 0;
         mpe_header[11] = 1;
     }
-    len = 12 + ip_len;
     crc = htonl(sectioncrc(buf, len));
     memcpy(&buf[len], &crc, 4);
     len += 4;
     write(fd, buf, len);
     if (stuff) {
-        unsigned long stuff_count = 184 - (len % 184);
+        unsigned long stuff_count = 184 - (len % 184) - 1; /* one less for TS packet pointer */
         if (stuff_count > 0) {
             write(fd, padding, stuff_count);
         }
@@ -111,6 +112,14 @@ void usage(char **argv)
     exit(1);
 }
 
+
+void exit_program(int sig)
+{
+    sprintf(s, "ifdown %s", ip_device);
+    system(s);
+    exit(0);
+}
+
 int main(int argc, char **argv)
 {
     int tun_fd = -1;
@@ -125,19 +134,22 @@ int main(int argc, char **argv)
             usage(argv);
         stuff = 1;
         memset(padding, 0xff, sizeof(padding));
-        strcpy(ip_device, argv[1]);
+        strcpy(ip_device, argv[2]);
     }
     tun_fd = tun_open (ip_device);
     if (tun_fd == -1)
         usage(argv);
+    (void) signal(SIGINT, exit_program);
+    (void) signal(SIGQUIT, exit_program);
     sprintf(s, "ifup %s", ip_device);
     system(s);
     while (1) {
         unsigned char buf[4100];
         unsigned char *mpe_header = buf;
-        unsigned char *tun_header = &buf[12];
+        unsigned char *tun_header = &buf[MPE_HEADER_LEN];
         int n = read(tun_fd, tun_header, sizeof(buf));
-        send_mpe(1, mpe_header, n + tun_header - mpe_header);
+        write(2, tun_header, n);
+        send_mpe(1, mpe_header, n + MPE_HEADER_LEN);
     }
     close(tun_fd);
 }
