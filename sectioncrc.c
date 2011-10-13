@@ -18,6 +18,7 @@
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+#include <stdint.h>
 /* crctab taken from cksum.c by Q. Frank Xia, qx@math.columbia.edu. */
 
 static unsigned long const crctab[256] = {
@@ -79,7 +80,7 @@ static unsigned long const crctab[256] = {
 unsigned long sectioncrc( unsigned char *buf, unsigned int len ) 
 {
     unsigned char *p;
-    unsigned long crc;
+    uint32_t crc;
 
     crc = 0xffffffff;
     p = buf;
