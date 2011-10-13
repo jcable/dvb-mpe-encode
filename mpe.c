@@ -22,12 +22,14 @@
 #define OTUNSETPERSIST (('T'<< 8) | 203)
 #define OTUNSETOWNER   (('T'<< 8) | 204)
 
+static int persist = 0;
 static int stuff = 0;
 static char padding[184];
-static char ip_device[150];
+static char ip_device[IFNAMSIZ];
 static char s[180];
 static const char *Id = "$Id$";
 const MPE_HEADER_LEN=12;
+int tun_fd = -1;
 
 int tun_open(char *dev)
 {
@@ -35,29 +37,43 @@ int tun_open(char *dev)
     int fd;
 
     if ((fd = open("/dev/net/tun", O_RDWR)) < 0)
-        goto failed;
+    {
+        perror("open tun");
+        return -1;
+    }
 
     memset(&ifr, 0, sizeof(ifr));
-    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+    ifr.ifr_flags = IFF_TUN;
+    if(persist == 0)
+      ifr.ifr_flags |= IFF_NO_PI;
     if (*dev)
         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+    else
+    {
+        fprintf(stderr, "device name not supplied\n");
+        return -1;
+    }
 
     if (ioctl(fd, TUNSETIFF, (void *) &ifr) < 0) {
         if (errno == EBADFD) {
             /* Try old ioctl */
             if (ioctl(fd, OTUNSETIFF, (void *) &ifr) < 0)
-                goto failed;
+            {
+                perror("new nor old ioctl worked\n");
+                close(fd);
+                return -1;
+            }
         } else
-            goto failed;
+	{
+                perror("other error\n");
+                close(fd);
+                return -1;
+	}
     }
 
-    strcpy(dev, ifr.ifr_name);
+    strncpy(dev, ifr.ifr_name, IFNAMSIZ);
     return fd;
 
-failed:
-    perror("open");
-    close(fd);
-    return -1;
 }
 
 void send_mpe(int fd, unsigned char *buf, size_t len)
@@ -101,9 +117,11 @@ void send_mpe(int fd, unsigned char *buf, size_t len)
 
 void usage(char **argv)
 {
-    fprintf(stderr, "usage %s [-s] devname\n", argv[0]);
+    fprintf(stderr, "usage %s [-p] [-s] devname\n", argv[0]);
     fprintf(stderr,
             "Create a tun device and send DVB/MPE DSM-CC sections to stdout.\n");
+    fprintf(stderr,
+            "-p don't create or configure the tun device\n");
     fprintf(stderr,
             "-s stuff sections to multiple of 184 bytes using 0xff octets\n");
     fprintf(stderr,
@@ -115,41 +133,48 @@ void usage(char **argv)
 
 void exit_program(int sig)
 {
+    fprintf(stderr, "stopping %s\n", ip_device);
     sprintf(s, "ifdown %s", ip_device);
     system(s);
+    close(tun_fd);
     exit(0);
 }
 
 int main(int argc, char **argv)
 {
-    int tun_fd = -1;
+    int n = 1;
     if (argc < 2)
         usage(argv);
-    if (argc > 3)
+    if (argc > 4)
         usage(argv);
-    if (argc == 2)
-        strcpy(ip_device, argv[1]);
-    if (argc == 3) {
-        if (strcmp(argv[1], "-s") != 0)
-            usage(argv);
-        stuff = 1;
-        memset(padding, 0xff, sizeof(padding));
-        strcpy(ip_device, argv[2]);
+    while(argv[n][0] == '-')
+    {
+        if (strcmp(argv[n], "-p") == 0)
+		persist = 1;
+        if (strcmp(argv[n], "-s") == 0)
+	{
+		stuff = 1;
+		memset(padding, 0xff, sizeof(padding));
+	}
+	n++;
     }
+    strcpy(ip_device, argv[n]);
     tun_fd = tun_open (ip_device);
     if (tun_fd == -1)
         usage(argv);
     (void) signal(SIGINT, exit_program);
     (void) signal(SIGQUIT, exit_program);
-    sprintf(s, "ifup %s", ip_device);
-    system(s);
+    if(persist==0)
+    {
+      sprintf(s, "ifup %s", ip_device);
+      system(s);
+    }
     while (1) {
         unsigned char buf[4100];
         unsigned char *mpe_header = buf;
         unsigned char *tun_header = &buf[MPE_HEADER_LEN];
         int n = read(tun_fd, tun_header, sizeof(buf));
-        write(2, tun_header, n);
+        //write(2, tun_header, n);
         send_mpe(1, mpe_header, n + MPE_HEADER_LEN);
     }
-    close(tun_fd);
 }
